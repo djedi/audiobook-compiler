@@ -56,9 +56,9 @@ The reason you might want to run each step independently is perhaps you might wa
 
 Options | Description
 --- | ---
-| -a, --convert | Convert audio files into MPEG-4 (.m4a) format. A directory named `converted` will be created to store these. |
-| -b, --build | Builds the `FILES` list and the `METADATA` files. These will be located in the directory you specify. |
-| -c, --convert | Uses the `FILES` list and `METADATA` file to build your m4b audiobook. |
+| `-a`, `--convert` | Convert audio files into MPEG-4 (.m4a) format. A directory named `converted` will be created to store these. |
+| `-b`, `--build` | Builds the `FILES` list and the `METADATA` files. These will be located in the directory you specify. |
+| `-c`, `--convert` | Uses the `FILES` list and `METADATA` file to build your m4b audiobook. |
 
 ## Requirements
 
