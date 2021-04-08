@@ -1,0 +1,125 @@
+#!/usr/bin/env python3
+
+import getopt
+import glob
+import os
+import shutil
+import sys
+import yaml
+from pathlib import Path
+from subprocess import call, check_output
+
+
+# globals :P
+metadata_path = None
+file_list_path = None
+
+
+def get_file_list(book_dir):
+	return sorted(glob.glob(os.path.join(book_dir, '*.m4a')))
+
+
+def get_meta(book_dir):
+	meta_file = os.path.join(book_dir, 'meta.yaml')
+	try:
+		with open(meta_file, 'r') as stream:
+			data = (yaml.safe_load(stream))
+	except FileNotFoundError:
+		print('No meta.yaml found.')
+		return {}
+	return data
+
+
+def build_meta(book_dir, title, author):
+	print('# Building Metadata...')
+	files = get_file_list(book_dir)
+	fm = open(metadata_path, 'w')
+	fm.writelines([
+		';FFMETADATA\n',
+		'title={}\n'.format(title),
+		'artist={}\n'.format(author),
+		'album={}\n'.format(title),
+		'genre=Audiobooks\n',
+	])
+	mp3_files = get_file_list(book_dir)
+	fl = open(file_list_path, 'w')
+	start = 0
+	end = 0
+	for filename in mp3_files:
+		full_filename = os.path.join(os.getcwd(), filename)
+		fl.write('file \'{}\'\n'.format(
+			os.path.basename(filename).replace("'", "'\\''")))
+		cmd = 'ffprobe "{}" -show_entries format=duration -v quiet -of csv="p=0"'.format(
+			full_filename)
+		end_output = check_output(cmd, shell=True)
+		end += int(float(end_output) * 1000)
+		fm.writelines([
+			'[CHAPTER]\n',
+			'TIMEBASE=1/1000\n',
+			'START={}\n'.format(start),
+			'END={}\n'.format(end),
+			'title={}\n'.format(Path(filename).stem),
+		])
+		start = end
+	fl.close()
+	fm.close()
+
+
+def convert_files(book_dir):
+	mp3s = sorted(glob.glob(os.path.join(book_dir, '*')))
+	for m in mp3s:
+		converted_filename = os.path.join('converted', Path(m).stem + '.m4a')
+		if os.path.exists(converted_filename):
+			print('Skipping {}'.format(m))
+		else:
+			cmd = 'ffmpeg -i "{}" -vn -ar 24000 -ac 1 -ab 64k "{}"'.format(m, converted_filename)
+			print(cmd)
+			call(cmd, shell=True)
+
+
+def compile_audiobook(title, author, cover_filename):
+	print('# Compiling eBook...')
+	audiobook_name = '{} by {}.m4b'.format(title, author)
+	cmd = 'ffmpeg -f concat -safe 0 -i "{}" -i "{}" -map_metadata 1 -vn -y -acodec copy "{}"'.format(
+	    file_list_path, metadata_path, audiobook_name)
+	print('> {}'.format(cmd))
+	call(cmd, shell=True)
+	cmd = 'mp4art -q --add "{}" "{}"'.format(cover_filename, audiobook_name)
+	call(cmd, shell=True)
+
+
+if __name__ == '__main__':
+	try:
+		opts, args = getopt.getopt(
+			sys.argv[1:],
+			"bcx",
+			["build", "compile", "convert"],
+		)
+	except getopt.GetoptError:
+		print('error reading options')
+		sys.exit(2)
+	book_dir = args[0]
+	metadata_path = os.path.join(book_dir, 'METADATA')
+	file_list_path = os.path.join(book_dir, 'FILES')
+	meta = get_meta(book_dir)
+
+	for o, a in opts:
+		if o in ('-a', '--convert'):
+			if not os.path.exists('converted'):
+				os.makedirs('converted')
+			convert_files(book_dir)
+			if meta:
+				shutil.copy(os.path.join(book_dir, 'meta.yaml'), os.path.join('converted', 'meta.yaml'))
+			if meta.get('cover'):
+				shutil.copy(os.path.join(book_dir, meta['cover']), os.path.join('converted', meta['cover']))
+			book_dir = 'converted'
+			metadata_path = os.path.join(book_dir, 'METADATA')
+			file_list_path = os.path.join(book_dir, 'FILES')
+		if o in ('-b', '--build'):
+			build_meta(book_dir, meta.get('title'), meta.get('author'))
+		if o in ('-c', '--compile'):
+			compile_audiobook(
+				meta.get('title'),
+				meta.get('author'),
+				os.path.join(book_dir, meta.get('cover')),
+			)
