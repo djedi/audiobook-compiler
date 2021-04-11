@@ -92,8 +92,8 @@ if __name__ == '__main__':
 	try:
 		opts, args = getopt.getopt(
 			sys.argv[1:],
-			"bcx",
-			["build", "compile", "convert"],
+			"abc",
+			["converte", "build", "compile"],
 		)
 	except getopt.GetoptError:
 		print('error reading options')
