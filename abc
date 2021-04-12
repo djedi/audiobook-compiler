@@ -3,13 +3,14 @@
 import getopt
 import glob
 import json
+import multiprocessing
 import os
 import re
 import shutil
 import sys
 import yaml
 from pathlib import Path
-from subprocess import call, check_output
+from subprocess import call, check_output, DEVNULL
 
 
 # globals :P
@@ -80,14 +81,18 @@ def build_meta(book_dir, title, author, track_title_metadata=None, track_title_r
 
 def convert_files(book_dir):
 	mp3s = sorted(glob.glob(os.path.join(book_dir, '*')))
-	for m in mp3s:
-		converted_filename = os.path.join('converted', Path(m).stem + '.m4a')
-		if os.path.exists(converted_filename):
-			print('Skipping {}'.format(m))
-		else:
-			cmd = 'ffmpeg -i "{}" -vn -ar 24000 -ac 1 -ab 64k "{}"'.format(m, converted_filename)
-			print(cmd)
-			call(cmd, shell=True)
+	with multiprocessing.Pool(os.cpu_count()) as p:
+		p.map(convert_one_file, mp3s)
+
+
+def convert_one_file(filename):
+	converted_filename = os.path.join('converted', Path(filename).stem + '.m4a')
+	if os.path.exists(converted_filename):
+		print('Skipping {}'.format(filename))
+	else:
+		cmd = 'ffmpeg -i "{}" -vn -ar 24000 -ac 1 -ab 64k "{}" >/dev/null 2>&1'.format(filename, converted_filename)
+		print('Converting {}...'.format(filename))
+		call(cmd, shell=True, stdout=DEVNULL)
 
 
 def compile_audiobook(title, author, cover_filename):
