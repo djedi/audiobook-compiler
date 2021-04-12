@@ -2,7 +2,9 @@
 
 import getopt
 import glob
+import json
 import os
+import re
 import shutil
 import sys
 import yaml
@@ -30,7 +32,7 @@ def get_meta(book_dir):
 	return data
 
 
-def build_meta(book_dir, title, author):
+def build_meta(book_dir, title, author, track_title_metadata=None, track_title_regex=None):
 	print('# Building Metadata...')
 	files = get_file_list(book_dir)
 	fm = open(metadata_path, 'w')
@@ -49,16 +51,27 @@ def build_meta(book_dir, title, author):
 		full_filename = os.path.join(os.getcwd(), filename)
 		fl.write('file \'{}\'\n'.format(
 			os.path.basename(filename).replace("'", "'\\''")))
-		cmd = 'ffprobe "{}" -show_entries format=duration -v quiet -of csv="p=0"'.format(
-			full_filename)
-		end_output = check_output(cmd, shell=True)
-		end += int(float(end_output) * 1000)
+		# cmd = 'ffprobe "{}" -show_entries format=duration -v quiet -of csv="p=0"'.format(
+		# 	full_filename)
+		# end_output = check_output(cmd, shell=True)
+		cmd = 'ffprobe -hide_banner -loglevel fatal -show_error -show_format -print_format json "{}"'.format(
+			full_filename
+		)
+		output = check_output(cmd, shell=True)
+		data = json.loads(output)
+		end += int(float(data['format']['duration']) * 1000)
+		title = Path(filename).stem
+		if track_title_regex:
+			res = re.search(track_title_regex, title)
+			title = res.group(1)
+		if track_title_metadata:
+			title = data['format']['tags'].get(track_title_metadata)
 		fm.writelines([
 			'[CHAPTER]\n',
 			'TIMEBASE=1/1000\n',
 			'START={}\n'.format(start),
 			'END={}\n'.format(end),
-			'title={}\n'.format(Path(filename).stem),
+			'title={}\n'.format(title),
 		])
 		start = end
 	fl.close()
@@ -116,7 +129,13 @@ if __name__ == '__main__':
 			metadata_path = os.path.join(book_dir, 'METADATA')
 			file_list_path = os.path.join(book_dir, 'FILES')
 		if o in ('-b', '--build'):
-			build_meta(book_dir, meta.get('title'), meta.get('author'))
+			build_meta(
+				book_dir,
+				meta.get('title'),
+				meta.get('author'),
+				meta.get('track_title_metadata'),
+				meta.get('track_title_regex'),
+			)
 		if o in ('-c', '--compile'):
 			compile_audiobook(
 				meta.get('title'),

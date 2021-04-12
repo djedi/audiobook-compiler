@@ -22,7 +22,19 @@ Create a file named `meta.yaml` that will contain the metadata for the audiobook
 title: The Greatest Audiobook
 author: Author B. Name
 cover: cover.jpg  # enter the name of your cover image
+track_title_metadata: title  # Optional - Sets the chapter title as the file's metadata title
+track_title_regex: ^\d{3}-(.+)$  # Optional - Regex to modify the chapter title based on the filename (see below)
 ```
+
+### Track (Chapter) Titles
+
+There are a few options for specifying track titles.
+
+By default, the track title will be the name of the file with the extension removed.
+
+If you specify `track_title_metadata`, the script will read the metadata on the file and use use the field you specify. Most common would be to use the `title` field, but if you have a compilation of speakers at a conference for example, you may want to specify the `artist` field.
+
+If you specify `track_title_regex`, you will need to have a matching group. The script will use the first match group as the title. File extenions are automatically removed. For example, let's sayin my files are formatted with title's like `01 - Chapter 1.m4a` and `02 - Chapter 2.m4a`, etc. If you specified a regex value of `^\d{2} - (.+)`, the resulting titles would be `Chapter 1` and `Chapter 2`.
 
 ## Conversion
 
