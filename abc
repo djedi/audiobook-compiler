@@ -1,4 +1,4 @@
-#!/usr/bin/env python3
+#!/usr/bin/env python
 
 import getopt
 import glob
@@ -86,8 +86,9 @@ def convert_files(book_dir):
 
 
 def convert_one_file(filename):
+	skip_ext = ['.jpg', '.png', '.yaml']
 	converted_filename = os.path.join('converted', Path(filename).stem + '.m4a')
-	if os.path.exists(converted_filename):
+	if os.path.exists(converted_filename) or Path(filename).suffix in skip_ext:
 		print('Skipping {}'.format(filename))
 	else:
 		cmd = 'ffmpeg -i "{}" -vn -ar 24000 -ac 1 -ab 64k "{}" >/dev/null 2>&1'.format(filename, converted_filename)
